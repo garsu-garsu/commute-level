@@ -18,6 +18,16 @@ export const REGIONS: Region[] = [
   { id: "seongnam", name: "성남", latitude: 37.42, longitude: 127.1267 },
   { id: "goyang", name: "고양", latitude: 37.6584, longitude: 126.832 },
   { id: "yongin", name: "용인", latitude: 37.2411, longitude: 127.1776 },
+  { id: "anyang", name: "안양", latitude: 37.3943, longitude: 126.9568 },
+  { id: "ansan", name: "안산", latitude: 37.3219, longitude: 126.8309 },
+  { id: "bucheon", name: "부천", latitude: 37.5035, longitude: 126.766 },
+  { id: "hwaseong", name: "화성", latitude: 37.1996, longitude: 126.8314 },
+  { id: "namyangju", name: "남양주", latitude: 37.636, longitude: 127.2165 },
+  { id: "pyeongtaek", name: "평택", latitude: 36.9921, longitude: 127.1128 },
+  { id: "uijeongbu", name: "의정부", latitude: 37.7381, longitude: 127.0337 },
+  { id: "gimpo", name: "김포", latitude: 37.6152, longitude: 126.7156 },
+  { id: "gwangmyeong", name: "광명", latitude: 37.4786, longitude: 126.8644 },
+  { id: "paju", name: "파주", latitude: 37.76, longitude: 126.78 },
   { id: "cheongju", name: "청주", latitude: 36.6424, longitude: 127.489 },
   { id: "cheonan", name: "천안", latitude: 36.8151, longitude: 127.1139 },
   { id: "jeonju", name: "전주", latitude: 35.8242, longitude: 127.148 },
@@ -50,8 +60,26 @@ export function loadRegion(): Region | null {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
-    const saved = JSON.parse(raw) as { id?: string };
-    return REGIONS.find((r) => r.id === saved.id) ?? null;
+    const saved = JSON.parse(raw) as Partial<Region>;
+    // 현재 위치(GPS)처럼 목록에 없는 지역도 좌표·이름까지 그대로 복원해요.
+    if (
+      typeof saved.id === "string" &&
+      typeof saved.name === "string" &&
+      typeof saved.latitude === "number" &&
+      typeof saved.longitude === "number"
+    ) {
+      return {
+        id: saved.id,
+        name: saved.name,
+        latitude: saved.latitude,
+        longitude: saved.longitude,
+      };
+    }
+    // 구버전(id만 저장됨) 호환
+    if (typeof saved.id === "string") {
+      return REGIONS.find((r) => r.id === saved.id) ?? null;
+    }
+    return null;
   } catch {
     return null;
   }
@@ -59,7 +87,7 @@ export function loadRegion(): Region | null {
 
 export function saveRegion(region: Region) {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ id: region.id }));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(region));
   } catch {
     // 저장 실패 시 다음 진입에 다시 선택
   }

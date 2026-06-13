@@ -19,9 +19,13 @@ export interface Briefing {
   evening: string;
   /** 오늘 6시~23시 시간별 데이터 */
   todayHours: HourlyWeather[];
-  /** 현재(또는 출근 시간대) 기온/체감 표시용 */
+  /** 출근 시간대(7~9시) 기온/체감 — 난이도 계산 기준 */
   morningTemp: number;
   morningApparentTemp: number;
+  /** 앱을 보는 지금 시각 기준 실시간 기온/체감 */
+  currentTemp: number;
+  currentApparentTemp: number;
+  currentWeatherCode: number;
   dustLabel: string | null;
 }
 
@@ -56,6 +60,16 @@ export function buildBriefing(data: WeatherData, now: Date): Briefing {
   const morningApparentTemp = avg(morningCore.map((h) => h.apparentTemperature));
   const morningTemp = avg(morningCore.map((h) => h.temperature));
   const yesterdayApparentTemp = avg(yesterdayMorning.map((h) => h.apparentTemperature));
+
+  // 지금 시각에 가장 가까운 정시 데이터 (없으면 오늘 첫 시각으로 폴백)
+  const nowHourKey = `${today}T${String(now.getHours()).padStart(2, "0")}:00`;
+  const currentEntry =
+    data.hourly.find((h) => h.time === nowHourKey) ??
+    data.hourly.find((h) => h.time.startsWith(today)) ??
+    todayHours[0];
+  const currentTemp = currentEntry?.temperature ?? morningTemp;
+  const currentApparentTemp = currentEntry?.apparentTemperature ?? morningApparentTemp;
+  const currentWeatherCode = currentEntry?.weatherCode ?? 3;
 
   const morningPrecipProbability = max(morning.map((h) => h.precipitationProbability));
   const morningPrecipitation = max(morning.map((h) => h.precipitation));
@@ -162,6 +176,9 @@ export function buildBriefing(data: WeatherData, now: Date): Briefing {
     todayHours,
     morningTemp,
     morningApparentTemp,
+    currentTemp,
+    currentApparentTemp,
+    currentWeatherCode,
     dustLabel: grade ? DUST_LABELS[grade] : null,
   };
 }

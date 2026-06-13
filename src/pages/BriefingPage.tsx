@@ -20,6 +20,7 @@ import { AD_IDS } from "../lib/ads";
 import { buildShareMessage, formatDate } from "../lib/briefing";
 import type { Briefing } from "../lib/briefing";
 import type { Region } from "../lib/regions";
+import { describeWeatherCode } from "../lib/weather";
 
 interface Props {
   region: Region;
@@ -241,9 +242,14 @@ function StarSection({ briefing }: { briefing: Briefing }) {
       <p style={{ margin: 0, fontSize: 16, color: adaptive.grey700 }}>{briefing.headline}</p>
       <p style={{ margin: 0, fontSize: 14, color: adaptive.grey600 }}>{briefing.comparison}</p>
 
+      <p style={{ margin: "4px 0 0", fontSize: 17, fontWeight: 600, color: adaptive.grey800 }}>
+        {describeWeatherCode(briefing.currentWeatherCode).emoji} 지금{" "}
+        {Math.round(briefing.currentTemp)}° · 체감 {Math.round(briefing.currentApparentTemp)}°
+      </p>
+
       <div style={{ display: "flex", gap: 6, marginTop: 8, flexWrap: "wrap", justifyContent: "center" }}>
         <Badge size="small" color="blue" variant="weak">
-          체감 {Math.round(briefing.morningApparentTemp)}°
+          출근 체감 {Math.round(briefing.morningApparentTemp)}°
         </Badge>
         {briefing.flags.umbrella && (
           <Badge size="small" color="blue" variant="fill">

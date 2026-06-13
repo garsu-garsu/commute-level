@@ -31,7 +31,8 @@ function App() {
   };
 
   if (!region || selecting) {
-    return <RegionSelectPage onSelect={handleSelect} />;
+    // 첫 진입(저장된 지역 없음)에서만 자동으로 위치를 요청해요. 수동 변경 시에는 직접 고르게 둬요.
+    return <RegionSelectPage onSelect={handleSelect} autoLocate={region == null} />;
   }
 
   return <BriefingPage region={region} onChangeRegion={() => setSelecting(true)} />;
