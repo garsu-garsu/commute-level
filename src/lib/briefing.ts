@@ -1,3 +1,5 @@
+import { centerHour, crossesMidnight, DEFAULT_COMMUTE, eveningWindow, morningWindow } from "./commute";
+import type { CommuteTime } from "./commute";
 import { calcDifficulty, dustGrade, DUST_LABELS } from "./difficulty";
 import type { DifficultyResult } from "./difficulty";
 import { pickOutfit } from "./outfit";
@@ -19,7 +21,7 @@ export interface Briefing {
   evening: string;
   /** 오늘 6시~23시 시간별 데이터 */
   todayHours: HourlyWeather[];
-  /** 출근 시간대(7~9시) 기온/체감 — 난이도 계산 기준 */
+  /** 출근 시간대(사용자 설정) 기온/체감 — 난이도 계산 기준 */
   morningTemp: number;
   morningApparentTemp: number;
   /** 앱을 보는 지금 시각 기준 실시간 기온/체감 */
@@ -47,15 +49,27 @@ function hoursOf(hourly: HourlyWeather[], key: string, from: number, to: number)
 const avg = (nums: number[]) => nums.reduce((a, b) => a + b, 0) / Math.max(1, nums.length);
 const max = (nums: number[]) => (nums.length > 0 ? Math.max(...nums) : 0);
 
-export function buildBriefing(data: WeatherData, now: Date): Briefing {
+export function buildBriefing(data: WeatherData, now: Date, commute: CommuteTime = DEFAULT_COMMUTE): Briefing {
   const today = dateKey(now);
   const yesterday = dateKey(new Date(now.getTime() - 24 * 60 * 60 * 1000));
 
-  const morning = hoursOf(data.hourly, today, 6, 9);
-  const morningCore = hoursOf(data.hourly, today, 7, 9);
-  const yesterdayMorning = hoursOf(data.hourly, yesterday, 7, 9);
-  const evening = hoursOf(data.hourly, today, 18, 20);
-  const todayHours = hoursOf(data.hourly, today, 6, 23);
+  const { core, wide } = morningWindow(commute);
+  const [eveningFrom, eveningTo] = eveningWindow(commute);
+  // 야간 출근(퇴근이 출근보다 이른 시각)이면 퇴근길은 다음 날 예보를 봐요.
+  const eveningKey = crossesMidnight(commute)
+    ? dateKey(new Date(now.getTime() + 24 * 60 * 60 * 1000))
+    : today;
+
+  const morning = hoursOf(data.hourly, today, wide[0], wide[1]);
+  const morningCore = hoursOf(data.hourly, today, core[0], core[1]);
+  const yesterdayMorning = hoursOf(data.hourly, yesterday, core[0], core[1]);
+  const evening = hoursOf(data.hourly, eveningKey, eveningFrom, eveningTo);
+
+  // 추이 막대는 기본 6~23시를 보여주되, 이른 출근/퇴근이면 그 시간대까지 포함해요.
+  const departCenter = centerHour(commute.depart);
+  const leaveCenter = centerHour(commute.leave);
+  const trendFrom = Math.max(0, Math.min(6, departCenter - 2, leaveCenter - 1));
+  const todayHours = hoursOf(data.hourly, today, trendFrom, 23);
 
   const morningApparentTemp = avg(morningCore.map((h) => h.apparentTemperature));
   const morningTemp = avg(morningCore.map((h) => h.temperature));
@@ -112,16 +126,16 @@ export function buildBriefing(data: WeatherData, now: Date): Briefing {
   } else if (Math.abs(diff) >= 3) {
     comparison =
       diff < 0
-        ? `어제 아침보다 ${-diff}도 낮아요. 한 겹 더 챙기세요.`
-        : `어제 아침보다 ${diff}도 높아요. 한 겹 덜어내도 돼요.`;
+        ? `어제 같은 시간보다 ${-diff}도 낮아요. 한 겹 더 챙기세요.`
+        : `어제 같은 시간보다 ${diff}도 높아요. 한 겹 덜어내도 돼요.`;
   } else if (todayRain && !yesterdayRain) {
     comparison = "어제는 멀쩡했는데 오늘은 비 소식이 있어요.";
   } else if (!todayRain && yesterdayRain) {
     comparison = eveningRainExpected
-      ? "아침 비는 그쳤지만 저녁에 다시 와요. 우산은 챙기세요."
+      ? "비는 그쳤다가 저녁에 다시 와요. 우산은 챙기세요."
       : "어제 내리던 비는 그쳐요. 우산은 두고 가도 돼요.";
   } else {
-    comparison = "어제 아침과 비슷해요. 어제 입은 대로면 충분해요.";
+    comparison = "어제 같은 시간과 비슷해요. 어제 입은 대로면 충분해요.";
   }
 
   // ── 한 줄 요약 (푸시/공유 카드 첫 줄) ──
@@ -135,10 +149,10 @@ export function buildBriefing(data: WeatherData, now: Date): Briefing {
   if (parts.length === 0) {
     parts.push(
       morningApparentTemp >= 28
-        ? "아침부터 더워요, 시원하게 입으세요"
+        ? "나설 때부터 더워요, 시원하게 입으세요"
         : morningApparentTemp <= 5
           ? "쌀쌀해요, 따뜻하게 입으세요"
-          : "큰 변수 없는 아침이에요",
+          : "큰 변수 없는 하루예요",
     );
   }
   const headline = parts.slice(0, 2).join(", ");
@@ -153,7 +167,7 @@ export function buildBriefing(data: WeatherData, now: Date): Briefing {
   } else if (evening.some((h) => isSnowCode(h.weatherCode) && h.precipitationProbability >= 30)) {
     eveningText = `${eveningWord}에 눈이 올 수 있어요. 귀가 시간을 여유 있게 잡으세요.`;
   } else if (eveningRainProb >= 60) {
-    eveningText = `${eveningWord} 강수확률 ${Math.round(eveningRainProb)}%. 아침에 우산 챙겨야 저녁이 편해요.`;
+    eveningText = `${eveningWord} 강수확률 ${Math.round(eveningRainProb)}%. 나설 때 우산 챙겨야 ${eveningWord}이 편해요.`;
   } else if (eveningRainProb >= 30) {
     eveningText = `${eveningWord} 강수확률 ${Math.round(eveningRainProb)}%. 접이식 우산 정도면 충분해요.`;
   } else if (Math.round(eveningApparent - morningApparentTemp) <= -4) {

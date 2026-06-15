@@ -5,12 +5,16 @@ import type { HourlyWeather } from "../lib/weather";
 interface Props {
   hours: HourlyWeather[];
   isWeekend: boolean;
+  /** 사용자가 설정한 출근 시각 (집을 나서는 시간) */
+  departHour: number;
+  /** 사용자가 설정한 퇴근 시각 (회사를 나서는 시간) */
+  leaveHour: number;
 }
 
-const COMMUTE_HOURS = [7, 8, 9];
-const LEAVE_HOURS = [18, 19, 20];
+export function HourlyTrend({ hours, isWeekend, departHour, leaveHour }: Props) {
+  const commuteHours = [departHour - 1, departHour, departHour + 1];
+  const leaveHours = [leaveHour - 1, leaveHour, leaveHour + 1];
 
-export function HourlyTrend({ hours, isWeekend }: Props) {
   return (
     <div
       style={{
@@ -23,8 +27,8 @@ export function HourlyTrend({ hours, isWeekend }: Props) {
     >
       {hours.map((h) => {
         const hour = Number(h.time.slice(11, 13));
-        const isCommute = !isWeekend && COMMUTE_HOURS.includes(hour);
-        const isLeave = !isWeekend && LEAVE_HOURS.includes(hour);
+        const isCommute = !isWeekend && commuteHours.includes(hour);
+        const isLeave = !isWeekend && leaveHours.includes(hour);
         const highlighted = isCommute || isLeave;
         const { emoji } = describeWeatherCode(h.weatherCode);
 
@@ -44,7 +48,11 @@ export function HourlyTrend({ hours, isWeekend }: Props) {
             }}
           >
             <span style={{ fontSize: 11, color: adaptive.grey500 }}>
-              {isCommute && hour === 8 ? "출근" : isLeave && hour === 19 ? "퇴근" : `${hour}시`}
+              {isCommute && hour === departHour
+                ? "출근"
+                : isLeave && hour === leaveHour
+                  ? "퇴근"
+                  : `${hour}시`}
             </span>
             <span style={{ fontSize: 18, lineHeight: "24px" }}>{emoji}</span>
             <span

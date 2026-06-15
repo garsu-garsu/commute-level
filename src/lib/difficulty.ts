@@ -112,7 +112,7 @@ const STAR_LABELS: Record<number, { weekday: string; weekend: string }> = {
   1: { weekday: "가뿐한 출근길이에요", weekend: "나들이 가기 최고예요" },
   2: { weekday: "무난한 출근길이에요", weekend: "나들이하기 무난해요" },
   3: { weekday: "조금 신경 쓸 게 있어요", weekend: "나가기 전에 한 번 더 확인하세요" },
-  4: { weekday: "꽤 험난한 아침이에요", weekend: "나들이는 각오가 필요해요" },
+  4: { weekday: "꽤 험난한 출근길이에요", weekend: "나들이는 각오가 필요해요" },
   5: { weekday: "출근 비상사태예요", weekend: "오늘은 집이 최고예요" },
 };
 

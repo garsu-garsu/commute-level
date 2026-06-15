@@ -3,6 +3,8 @@ import "./App.css";
 import { useInAppAds } from "./hooks/useInAppAds";
 import { canShowToday, markShownToday } from "./lib/adFrequency";
 import { AD_IDS } from "./lib/ads";
+import { loadCommute, saveCommute } from "./lib/commute";
+import type { CommuteTime } from "./lib/commute";
 import { loadRegion, saveRegion } from "./lib/regions";
 import type { Region } from "./lib/regions";
 import { BriefingPage } from "./pages/BriefingPage";
@@ -10,7 +12,13 @@ import { RegionSelectPage } from "./pages/RegionSelectPage";
 
 function App() {
   const [region, setRegion] = useState<Region | null>(() => loadRegion());
+  const [commute, setCommute] = useState<CommuteTime>(() => loadCommute());
   const [selecting, setSelecting] = useState(false);
+
+  const handleChangeCommute = (next: CommuteTime) => {
+    saveCommute(next);
+    setCommute(next);
+  };
 
   // 전면형 광고는 App 최상위에서 미리 로드해, 지역 선택 화면을 거쳐도 로드 상태가 유지되게 해요.
   const interstitial = useInAppAds(AD_IDS.interstitial);
@@ -35,7 +43,14 @@ function App() {
     return <RegionSelectPage onSelect={handleSelect} autoLocate={region == null} />;
   }
 
-  return <BriefingPage region={region} onChangeRegion={() => setSelecting(true)} />;
+  return (
+    <BriefingPage
+      region={region}
+      commute={commute}
+      onChangeRegion={() => setSelecting(true)}
+      onChangeCommute={handleChangeCommute}
+    />
+  );
 }
 
 export default App;

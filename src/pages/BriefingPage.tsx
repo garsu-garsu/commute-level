@@ -3,6 +3,7 @@ import { adaptive, colors } from "@toss/tds-colors";
 import {
   Badge,
   Border,
+  BottomSheet,
   Button,
   FixedBottomCTA,
   ListHeader,
@@ -19,16 +20,29 @@ import { useInAppAds } from "../hooks/useInAppAds";
 import { AD_IDS } from "../lib/ads";
 import { buildShareMessage, formatDate } from "../lib/briefing";
 import type { Briefing } from "../lib/briefing";
+import {
+  centerHour,
+  crossesMidnight,
+  formatHM,
+  parseHM,
+  STEP_MINUTES,
+  suggestLeave,
+  workMinutes,
+} from "../lib/commute";
+import type { CommuteTime } from "../lib/commute";
 import type { Region } from "../lib/regions";
 import { describeWeatherCode } from "../lib/weather";
 
 interface Props {
   region: Region;
+  commute: CommuteTime;
   onChangeRegion: () => void;
+  onChangeCommute: (commute: CommuteTime) => void;
 }
 
-export function BriefingPage({ region, onChangeRegion }: Props) {
-  const { state, reload } = useBriefing(region);
+export function BriefingPage({ region, commute, onChangeRegion, onChangeCommute }: Props) {
+  const { state, reload } = useBriefing(region, commute);
+  const [commuteSheetOpen, setCommuteSheetOpen] = useState(false);
 
   // 보상형 광고: '내일 미리보기' 잠금 해제용
   const rewarded = useInAppAds(AD_IDS.rewarded);
@@ -130,8 +144,18 @@ export function BriefingPage({ region, onChangeRegion }: Props) {
             시간대별 추이
           </ListHeader.TitleParagraph>
         }
+        right={
+          <ListHeader.RightArrow typography="t6" onClick={() => setCommuteSheetOpen(true)}>
+            {`출근 ${formatHM(commute.depart)} · 퇴근 ${formatHM(commute.leave)}`}
+          </ListHeader.RightArrow>
+        }
       />
-      <HourlyTrend hours={briefing.todayHours} isWeekend={briefing.isWeekend} />
+      <HourlyTrend
+        hours={briefing.todayHours}
+        isWeekend={briefing.isWeekend}
+        departHour={centerHour(commute.depart)}
+        leaveHour={centerHour(commute.leave)}
+      />
       <p
         style={{
           margin: "8px 24px 16px",
@@ -213,7 +237,150 @@ export function BriefingPage({ region, onChangeRegion }: Props) {
       <div style={{ height: 24 }} />
 
       <FixedBottomCTA onClick={handleShare}>난이도 카드 공유하기</FixedBottomCTA>
+
+      <CommuteTimeSheet
+        open={commuteSheetOpen}
+        commute={commute}
+        onClose={() => setCommuteSheetOpen(false)}
+        onSave={(next) => {
+          onChangeCommute(next);
+          setCommuteSheetOpen(false);
+        }}
+      />
     </>
+  );
+}
+
+function CommuteTimeSheet({
+  open,
+  commute,
+  onClose,
+  onSave,
+}: {
+  open: boolean;
+  commute: CommuteTime;
+  onClose: () => void;
+  onSave: (commute: CommuteTime) => void;
+}) {
+  const [draft, setDraft] = useState<CommuteTime>(commute);
+
+  // 바텀시트를 열 때마다 현재 설정값으로 초기화해요.
+  useEffect(() => {
+    if (open) setDraft(commute);
+  }, [open, commute]);
+
+  // 출근 시각을 바꾸면 퇴근을 9시간 뒤로 자동 추천해요. (자정 넘으면 다음 날)
+  const handleDepartChange = (minutes: number) =>
+    setDraft({ depart: minutes, leave: suggestLeave(minutes) });
+  const handleLeaveChange = (minutes: number) =>
+    setDraft((prev) => ({ ...prev, leave: minutes }));
+
+  const overnight = crossesMidnight(draft);
+  const work = workMinutes(draft);
+  const workHours = Math.floor(work / 60);
+  const workMins = work % 60;
+  const workText =
+    work === 0
+      ? "출근·퇴근 시각이 같아요"
+      : `근무 ${workHours}시간${workMins > 0 ? ` ${workMins}분` : ""}`;
+
+  return (
+    <BottomSheet
+      open={open}
+      onClose={onClose}
+      disableChildrenDragging
+      header={<BottomSheet.Header>출근·퇴근 시간 설정</BottomSheet.Header>}
+      headerDescription={
+        <BottomSheet.HeaderDescription>
+          설정한 시간대 날씨로 난이도와 옷차림을 계산해요.
+        </BottomSheet.HeaderDescription>
+      }
+      cta={<BottomSheet.CTA onClick={() => onSave(draft)}>이 시간으로 설정하기</BottomSheet.CTA>}
+    >
+      <div style={{ padding: "8px 24px 16px" }}>
+        <TimeRow label="출근" caption="집을 나서는 시각" minutes={draft.depart} onChange={handleDepartChange} />
+        <TimeRow
+          label="퇴근"
+          caption={overnight ? "다음 날 회사를 나서는 시각" : "회사를 나서는 시각"}
+          minutes={draft.leave}
+          badge={overnight ? "다음 날" : undefined}
+          onChange={handleLeaveChange}
+        />
+        <p
+          style={{
+            margin: "16px 0 0",
+            fontSize: 13,
+            color: adaptive.grey600,
+            textAlign: "center",
+          }}
+        >
+          {workText}
+          {overnight ? " · 야간 근무로 인식돼요" : ""}
+        </p>
+      </div>
+    </BottomSheet>
+  );
+}
+
+function TimeRow({
+  label,
+  caption,
+  minutes,
+  badge,
+  onChange,
+}: {
+  label: string;
+  caption: string;
+  minutes: number;
+  badge?: string;
+  onChange: (minutes: number) => void;
+}) {
+  return (
+    <label
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: 12,
+        padding: "14px 16px",
+        marginTop: 8,
+        borderRadius: 14,
+        backgroundColor: adaptive.grey100,
+        cursor: "pointer",
+      }}
+    >
+      <span style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+        <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <span style={{ fontSize: 15, fontWeight: 700, color: adaptive.grey800 }}>{label}</span>
+          {badge && (
+            <Badge size="xsmall" color="elephant" variant="weak">
+              {badge}
+            </Badge>
+          )}
+        </span>
+        <span style={{ fontSize: 12, color: adaptive.grey500 }}>{caption}</span>
+      </span>
+      <input
+        type="time"
+        step={STEP_MINUTES * 60}
+        value={formatHM(minutes)}
+        onChange={(event) => {
+          const parsed = parseHM(event.target.value);
+          if (parsed != null) onChange(parsed);
+        }}
+        style={{
+          appearance: "none",
+          WebkitAppearance: "none",
+          border: "none",
+          background: "transparent",
+          fontSize: 22,
+          fontWeight: 700,
+          color: colors.blue500,
+          textAlign: "right",
+          fontFamily: "inherit",
+        }}
+      />
+    </label>
   );
 }
 
