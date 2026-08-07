@@ -5,7 +5,7 @@ import { canShowToday, markShownToday } from "./lib/adFrequency";
 import { AD_IDS } from "./lib/ads";
 import { loadCommute, saveCommute } from "./lib/commute";
 import type { CommuteTime } from "./lib/commute";
-import { loadRegion, saveRegion } from "./lib/regions";
+import { DEFAULT_REGION, loadRegion, saveRegion } from "./lib/regions";
 import type { Region } from "./lib/regions";
 import { BriefingPage } from "./pages/BriefingPage";
 import { OnboardingPage } from "./pages/OnboardingPage";
@@ -31,7 +31,7 @@ function App() {
   const interstitial = useInAppAds(AD_IDS.interstitial);
 
   const handleSelect = (selected: Region) => {
-    // 첫 지역 선택(온보딩)이 아니라, 기존 사용자가 지역을 '변경'한 경우에만 전면형 광고 노출 대상이에요.
+    // 첫 지역 선택이 아니라, 기존 사용자가 지역을 '변경'한 경우에만 전면형 광고 노출 대상이에요.
     const isRegionChange = region != null;
 
     saveRegion(selected);
@@ -46,6 +46,7 @@ function App() {
   };
 
   if (!onboarded) {
+    // '시작하기'는 지역 선택을 거치지 않고 곧바로 브리핑으로 보내요.
     return (
       <OnboardingPage
         onStart={() => {
@@ -56,14 +57,16 @@ function App() {
     );
   }
 
-  if (!region || selecting) {
-    // 첫 진입(저장된 지역 없음)에서만 자동으로 위치를 요청해요. 수동 변경 시에는 직접 고르게 둬요.
+  if (selecting) {
+    // 아직 지역을 고른 적 없는 사람이 직접 열었을 때만 위치를 먼저 물어봐요.
     return <RegionSelectPage onSelect={handleSelect} autoLocate={region == null} />;
   }
 
+  // 지역을 고르기 전에도 서울 기준으로 오늘 출근 난이도를 바로 보여줘요. 설정은 뒤로 미뤄요.
   return (
     <BriefingPage
-      region={region}
+      region={region ?? DEFAULT_REGION}
+      isDefaultRegion={region == null}
       commute={commute}
       onChangeRegion={() => setSelecting(true)}
       onChangeCommute={handleChangeCommute}

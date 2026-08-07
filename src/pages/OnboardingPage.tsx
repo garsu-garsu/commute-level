@@ -8,8 +8,8 @@ interface Props {
 const STEPS = [
   {
     emoji: "📍",
-    title: "사는 지역을 골라요",
-    body: "위치를 켜두면 자동으로 잡아드리고, 원하면 직접 고를 수도 있어요.",
+    title: "설정 없이 바로 확인해요",
+    body: "시작하면 서울 기준으로 오늘 출근 난이도부터 보여드려요. 내 지역은 화면 맨 위에서 언제든 바꿀 수 있어요.",
   },
   {
     emoji: "🌡️",
@@ -28,7 +28,8 @@ export function OnboardingPage({ onStart }: Props) {
   return (
     <div style={{ paddingBottom: 32 }}>
       <Top
-        title={<Top.TitleParagraph size={26}>출근난이도</Top.TitleParagraph>}
+        {/* 앱 이름은 토스 상단 바가 이미 보여줘요 — 여기서 또 쓰면 헤더가 겹쳐 보여요. */}
+        title={<Top.TitleParagraph size={26}>오늘 출근길 어떨까</Top.TitleParagraph>}
         subtitleBottom={
           <Top.SubtitleParagraph size={15}>
             오늘 출근길, 얼마나 힘들까요?

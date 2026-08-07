@@ -39,6 +39,9 @@ export const REGIONS: Region[] = [
   { id: "jeju", name: "제주", latitude: 33.4996, longitude: 126.5312 },
 ];
 
+/** 아직 지역을 고르지 않은 사람에게 먼저 보여줄 기본 지역 (서울) */
+export const DEFAULT_REGION: Region = REGIONS[0];
+
 const STORAGE_KEY = "commute-level:region";
 
 export function findNearestRegion(latitude: number, longitude: number): Region {

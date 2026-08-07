@@ -210,5 +210,7 @@ export function buildShareMessage(regionName: string, briefing: Briefing): strin
     `${formatDate(briefing.date)} ${regionName} ${title} ${stars}`,
     briefing.headline,
     `오늘의 옷차림: ${briefing.outfit.items}`,
+    // 앱 이름이 들어가야 받은 사람이 검색해서 찾아올 수 있어요.
+    "⛅ 출근난이도 — 오늘 출근길 날씨 한눈에",
   ].join("\n");
 }

@@ -1,4 +1,4 @@
-import { share } from "@apps-in-toss/web-framework";
+import { getTossShareLink, share } from "@apps-in-toss/web-framework";
 import { adaptive, colors } from "@toss/tds-colors";
 import {
   Badge,
@@ -19,6 +19,7 @@ import { useBriefing } from "../hooks/useBriefing";
 import { useInAppAds } from "../hooks/useInAppAds";
 import { AD_IDS } from "../lib/ads";
 import { buildShareMessage, formatDate } from "../lib/briefing";
+import { askNotify, canAskNotify } from "../lib/notify";
 import type { Briefing } from "../lib/briefing";
 import {
   centerHour,
@@ -33,16 +34,31 @@ import type { CommuteTime } from "../lib/commute";
 import type { Region } from "../lib/regions";
 import { describeWeatherCode } from "../lib/weather";
 
+/** granite.config.ts 의 appName / brand.icon 과 맞춰야 해요. */
+const SHARE_DEEP_LINK = "intoss://commute-level";
+const SHARE_OG_IMAGE =
+  "https://static.toss.im/appsintoss/13203/5b4dff0b-a680-4e83-9afb-e450642089a2.png";
+
 interface Props {
   region: Region;
+  /** 아직 지역을 고르지 않아 기본 지역(서울)으로 보여주는 중인지 */
+  isDefaultRegion: boolean;
   commute: CommuteTime;
   onChangeRegion: () => void;
   onChangeCommute: (commute: CommuteTime) => void;
 }
 
-export function BriefingPage({ region, commute, onChangeRegion, onChangeCommute }: Props) {
+export function BriefingPage({
+  region,
+  isDefaultRegion,
+  commute,
+  onChangeRegion,
+  onChangeCommute,
+}: Props) {
   const { state, reload } = useBriefing(region, commute);
   const [commuteSheetOpen, setCommuteSheetOpen] = useState(false);
+  // 오늘 난이도를 확인한 뒤에 물어봐야 자연스러워서, 브리핑 맨 아래에만 보여줘요.
+  const [showNotifyCard, setShowNotifyCard] = useState(canAskNotify);
 
   // 보상형 광고: '내일 미리보기' 잠금 해제용
   const rewarded = useInAppAds(AD_IDS.rewarded);
@@ -85,7 +101,9 @@ export function BriefingPage({ region, commute, onChangeRegion, onChangeCommute 
   const handleShare = async () => {
     const message = buildShareMessage(region.name, briefing);
     try {
-      await share({ message });
+      // 받은 사람이 바로 앱으로 들어올 수 있게 토스 공유 링크를 붙여요. (실패하면 문구만 공유)
+      const link = await getTossShareLink(SHARE_DEEP_LINK, SHARE_OG_IMAGE).catch(() => "");
+      await share({ message: link ? `${message}\n${link}` : message });
     } catch {
       try {
         if (navigator.share) await navigator.share({ text: message });
@@ -105,7 +123,9 @@ export function BriefingPage({ region, commute, onChangeRegion, onChangeCommute 
         title={<Top.TitleParagraph size={22}>{title}</Top.TitleParagraph>}
         subtitleTop={
           <Top.SubtitleTextButton variant="arrow" onClick={onChangeRegion}>
-            {`${formatDate(briefing.date)} · ${region.name}`}
+            {isDefaultRegion
+              ? `${region.name} 날씨 기준 · 내 지역으로 바꾸기`
+              : `${formatDate(briefing.date)} · ${region.name}`}
           </Top.SubtitleTextButton>
         }
       />
@@ -119,7 +139,7 @@ export function BriefingPage({ region, commute, onChangeRegion, onChangeCommute 
       <ListHeader
         title={
           <ListHeader.TitleParagraph typography="t5" fontWeight="bold">
-            오늘의 옷차림
+            오늘 출근길 옷차림
           </ListHeader.TitleParagraph>
         }
       />
@@ -141,7 +161,7 @@ export function BriefingPage({ region, commute, onChangeRegion, onChangeCommute 
       <ListHeader
         title={
           <ListHeader.TitleParagraph typography="t5" fontWeight="bold">
-            시간대별 추이
+            시간대별 날씨·체감온도
           </ListHeader.TitleParagraph>
         }
         right={
@@ -221,7 +241,7 @@ export function BriefingPage({ region, commute, onChangeRegion, onChangeCommute 
       <ListHeader
         title={
           <ListHeader.TitleParagraph typography="t5" fontWeight="bold">
-            내일 미리보기
+            내일 출근 난이도 미리보기
           </ListHeader.TitleParagraph>
         }
       />
@@ -234,9 +254,17 @@ export function BriefingPage({ region, commute, onChangeRegion, onChangeCommute 
         />
       )}
 
+      {showNotifyCard && (
+        <MorningAlertCard
+          onAsk={() => askNotify().then(() => setShowNotifyCard(false))}
+        />
+      )}
+
       <div style={{ height: 24 }} />
 
-      <FixedBottomCTA onClick={handleShare}>난이도 카드 공유하기</FixedBottomCTA>
+      <FixedBottomCTA onClick={handleShare}>
+        {briefing.isWeekend ? "오늘 난이도 친구에게 보내기" : "오늘 출근 난이도 동료에게 보내기"}
+      </FixedBottomCTA>
 
       <CommuteTimeSheet
         open={commuteSheetOpen}
@@ -468,6 +496,34 @@ function LockedTomorrow({
       </p>
       <Button size="medium" variant="weak" onClick={onUnlock}>
         광고 보고 내일 난이도 확인하기
+      </Button>
+    </div>
+  );
+}
+
+function MorningAlertCard({ onAsk }: { onAsk: () => void }) {
+  return (
+    <div
+      style={{
+        margin: "24px 24px 0",
+        padding: "20px 16px",
+        borderRadius: 16,
+        backgroundColor: adaptive.blue50,
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        gap: 12,
+        textAlign: "center",
+      }}
+    >
+      <div style={{ fontSize: 28 }}>🔔</div>
+      <p style={{ margin: 0, fontSize: 15, color: adaptive.grey700, lineHeight: 1.5 }}>
+        내일 아침에도 챙겨드릴까요?
+        <br />
+        우산 챙길 날·갑자기 추워진 날을 알림으로 알려드려요.
+      </p>
+      <Button size="medium" variant="weak" onClick={onAsk}>
+        아침 출근 알림 받기
       </Button>
     </div>
   );
