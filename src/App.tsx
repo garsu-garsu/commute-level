@@ -8,9 +8,16 @@ import type { CommuteTime } from "./lib/commute";
 import { loadRegion, saveRegion } from "./lib/regions";
 import type { Region } from "./lib/regions";
 import { BriefingPage } from "./pages/BriefingPage";
+import { OnboardingPage } from "./pages/OnboardingPage";
 import { RegionSelectPage } from "./pages/RegionSelectPage";
 
+const ONBOARDED_KEY = "commute-level:onboarded";
+
 function App() {
+  // 첫 실행이면 소개 화면부터 — 한 번 보고 나면 다시 뜨지 않아요.
+  const [onboarded, setOnboarded] = useState(
+    () => localStorage.getItem(ONBOARDED_KEY) != null,
+  );
   const [region, setRegion] = useState<Region | null>(() => loadRegion());
   const [commute, setCommute] = useState<CommuteTime>(() => loadCommute());
   const [selecting, setSelecting] = useState(false);
@@ -37,6 +44,17 @@ function App() {
       interstitial.showAd();
     }
   };
+
+  if (!onboarded) {
+    return (
+      <OnboardingPage
+        onStart={() => {
+          localStorage.setItem(ONBOARDED_KEY, "1");
+          setOnboarded(true);
+        }}
+      />
+    );
+  }
 
   if (!region || selecting) {
     // 첫 진입(저장된 지역 없음)에서만 자동으로 위치를 요청해요. 수동 변경 시에는 직접 고르게 둬요.
