@@ -7,6 +7,8 @@ interface Props {
   adGroupId: string;
   /** 카드형(좌우 패딩+라운드) 또는 확장형(전체 너비) */
   variant?: "card" | "expanded";
+  /** 자리 높이(px). 이미지 강조형은 문구형보다 커서 200 을 넣어요. 높이 0 이면 광고가 안 붙어요. */
+  height?: number;
 }
 
 /**
@@ -25,7 +27,7 @@ const REFRESH_MS = 30_000;
  * - 광고가 채워지지 않으면(no-fill) 빈 영역을 남기지 않아요.
  * - 참고: https://developers-apps-in-toss.toss.im/bedrock/reference/framework/광고/BannerAd.html
  */
-export function BannerAd({ adGroupId, variant = "expanded" }: Props) {
+export function BannerAd({ adGroupId, variant = "expanded", height }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [hidden, setHidden] = useState(false);
   // 이 값이 바뀔 때마다 아래 effect 가 다시 돌면서 배너를 새로 붙여요.
@@ -131,7 +133,7 @@ export function BannerAd({ adGroupId, variant = "expanded" }: Props) {
         width: "100%",
         margin: "0 0 8px",
         boxSizing: "border-box",
-        height: hidden ? 0 : undefined,
+        height: hidden ? 0 : height,
         overflow: "hidden",
       }}
     />

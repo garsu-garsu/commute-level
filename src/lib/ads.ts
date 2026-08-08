@@ -10,6 +10,8 @@
 export const AD_IDS = {
   /** 배너 광고 (브리핑 본문 인라인 상시 노출, 이미지 강조=피드형) — WebView 전용 */
   banner: "ait.v2.live.2cca9f02ed1e4211",
+  /** 이미지 강조형 배너 (브리핑 본문 맨 아래) — WebView 전용 */
+  bannerImage: "ait.v2.live.5cd566df9cfc493e",
   /** 전면형 광고 (지역 변경 후 복귀 시, 하루 1회) */
   interstitial: "ait.v2.live.bdb16b8de5a8412c",
   /** 보상형 광고 (내일 난이도 미리보기 잠금 해제) */
