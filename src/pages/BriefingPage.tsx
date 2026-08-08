@@ -11,6 +11,7 @@ import {
   Result,
   Skeleton,
   Top,
+  useToast,
 } from "@toss/tds-mobile";
 import { useEffect, useState } from "react";
 import { BannerAd } from "../components/BannerAd";
@@ -19,7 +20,13 @@ import { useBriefing } from "../hooks/useBriefing";
 import { useInAppAds } from "../hooks/useInAppAds";
 import { AD_IDS } from "../lib/ads";
 import { buildShareMessage, formatDate } from "../lib/briefing";
-import { askNotify, canAskNotify } from "../lib/notify";
+import {
+  agreedSlot,
+  isNotifySupported,
+  NOTIFY_SLOTS,
+  requestNotify,
+  type NotifySlotCode,
+} from "../lib/notify";
 import type { Briefing } from "../lib/briefing";
 import {
   centerHour,
@@ -57,8 +64,6 @@ export function BriefingPage({
 }: Props) {
   const { state, reload } = useBriefing(region, commute);
   const [commuteSheetOpen, setCommuteSheetOpen] = useState(false);
-  // 오늘 난이도를 확인한 뒤에 물어봐야 자연스러워서, 브리핑 맨 아래에만 보여줘요.
-  const [showNotifyCard, setShowNotifyCard] = useState(canAskNotify);
 
   // 보상형 광고: '내일 미리보기' 잠금 해제용
   const rewarded = useInAppAds(AD_IDS.rewarded);
@@ -252,11 +257,7 @@ export function BriefingPage({
         />
       )}
 
-      {showNotifyCard && (
-        <MorningAlertCard
-          onAsk={() => askNotify().then(() => setShowNotifyCard(false))}
-        />
-      )}
+      {isNotifySupported() && <MorningAlertCard />}
 
       {/* 이미지 강조형 배너 — 본문 스크롤의 맨 끝. 끝까지 내려본 사람에게만 보여요.
           아래 배너는 하단 고정 CTA 에 붙어 있어 본문 흐름과 겹치지 않아요. */}
@@ -511,7 +512,25 @@ function LockedTomorrow({
   );
 }
 
-function MorningAlertCard({ onAsk }: { onAsk: () => void }) {
+function MorningAlertCard() {
+  const toast = useToast();
+  const [agreed, setAgreed] = useState(agreedSlot);
+
+  const onNotify = async (code: NotifySlotCode) => {
+    try {
+      const result = await requestNotify(code);
+      if (result === "agreementRejected") return;
+      setAgreed(code);
+      toast.openToast(
+        result === "alreadyAgreed"
+          ? "이미 알림을 받고 있어요."
+          : "이제 그 시간에 알려드릴게요.",
+      );
+    } catch {
+      toast.openToast("알림을 설정하지 못했어요. 잠시 후 다시 시도해 주세요.");
+    }
+  };
+
   return (
     <div
       style={{
@@ -528,13 +547,25 @@ function MorningAlertCard({ onAsk }: { onAsk: () => void }) {
     >
       <div style={{ fontSize: 28 }}>🔔</div>
       <p style={{ margin: 0, fontSize: 15, color: adaptive.grey700, lineHeight: 1.5 }}>
-        내일 아침에도 챙겨드릴까요?
+        {agreed == null
+          ? "몇 시에 출근 알림을 받을까요?"
+          : "알림을 받고 있어요. 시간은 언제든 바꿀 수 있어요."}
         <br />
-        우산 챙길 날·갑자기 추워진 날을 알림으로 알려드려요.
+        우산 챙길 날·갑자기 추워진 날을 알려드려요.
       </p>
-      <Button size="medium" variant="weak" onClick={onAsk}>
-        아침 출근 알림 받기
-      </Button>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 8, justifyContent: "center" }}>
+        {NOTIFY_SLOTS.map((slot) => (
+          <Button
+            key={slot.code}
+            size="small"
+            variant={agreed === slot.code ? "fill" : "weak"}
+            color={agreed === slot.code ? "primary" : "dark"}
+            onClick={() => void onNotify(slot.code)}
+          >
+            {slot.label}
+          </Button>
+        ))}
+      </div>
     </div>
   );
 }

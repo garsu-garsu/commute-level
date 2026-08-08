@@ -1,56 +1,60 @@
 import { requestNotificationAgreement } from "@apps-in-toss/web-framework";
 
 /**
- * 아침 알림 동의 템플릿 코드.
- *
- * 앱인토스 콘솔 > 스마트 발송 > 알림 동의 템플릿에서 만든 코드를 넣어주세요.
- * 비어 있으면 알림 받기 카드 자체가 뜨지 않아, 코드 없이도 앱은 그대로 동작해요.
- * - 콘솔: https://console-apps-in-toss.toss.im
+ * 알림 슬롯 — 콘솔에 등록한 알림 동의 템플릿 코드와 1:1로 짝지어요.
+ * 코드를 바꾸면 콘솔의 템플릿 코드도 같이 바꿔야 알림 동의 화면이 떠요.
  */
-const NOTIFY_TEMPLATE_CODE = "";
+export const NOTIFY_SLOTS = [
+  { code: "commute-level-am0630", label: "오전 6시 30분" },
+  { code: "commute-level-am0700", label: "오전 7시" },
+  { code: "commute-level-am0730", label: "오전 7시 30분" },
+  { code: "commute-level-am0800", label: "오전 8시" },
+  { code: "commute-level-am0830", label: "오전 8시 30분" },
+] as const;
 
-const DONE_KEY = "commute-level:notify-asked";
+export type NotifySlotCode = (typeof NOTIFY_SLOTS)[number]["code"];
 
-/** 토스 앱(WebView) 안인지 */
-function isInTossApp(): boolean {
-  return (
-    typeof window !== "undefined" &&
-    (window as unknown as { ReactNativeWebView?: unknown }).ReactNativeWebView != null
-  );
-}
+const AGREED_KEY = "commute-level:notify-agreed";
 
-/** 알림 받기 카드를 보여줄 수 있는 상태인지 (토스 앱 + 템플릿 코드 있음 + 아직 안 물어봄) */
-export function canAskNotify(): boolean {
-  if (!isInTossApp() || NOTIFY_TEMPLATE_CODE === "") return false;
+/** 토스 앱(WebView) 밖에서는 알림 동의 화면을 열 수 없어요. */
+export function isNotifySupported(): boolean {
   try {
-    return localStorage.getItem(DONE_KEY) == null;
+    return (
+      typeof window !== "undefined" &&
+      (window as unknown as { ReactNativeWebView?: unknown }).ReactNativeWebView != null
+    );
   } catch {
     return false;
   }
 }
 
-/** 알림 동의 화면을 띄우고, 한 번 물어본 사실을 기록해요. (거절해도 다시 조르지 않아요) */
-export function askNotify(): Promise<void> {
-  try {
-    localStorage.setItem(DONE_KEY, "1");
-  } catch {
-    // 저장 실패해도 동의 요청은 진행해요
-  }
-  return new Promise((resolve) => {
+/** 동의한 슬롯 — 화면 표시용이에요. 실제 발송 대상은 토스가 관리해요. */
+export function agreedSlot(): string | null {
+  return localStorage.getItem(AGREED_KEY);
+}
+
+/** 알림 동의 화면을 열고 결과를 돌려줘요. */
+export function requestNotify(code: NotifySlotCode): Promise<string> {
+  return new Promise((resolve, reject) => {
+    let cleanup: unknown;
+    // 반환값이 함수라는 보장이 없어요 — 토스 앱 버전에 따라 아무것도 안 돌려줍니다.
+    const done = (fn: () => void) => {
+      fn();
+      if (typeof cleanup === "function") cleanup();
+    };
     try {
-      const cleanup = requestNotificationAgreement({
-        options: { templateCode: NOTIFY_TEMPLATE_CODE },
-        onEvent: () => {
-          resolve();
-          cleanup();
+      cleanup = requestNotificationAgreement({
+        options: { templateCode: code },
+        onEvent: (result) => {
+          if (result.type !== "agreementRejected") {
+            localStorage.setItem(AGREED_KEY, code);
+          }
+          done(() => resolve(result.type));
         },
-        onError: () => {
-          resolve();
-          cleanup();
-        },
+        onError: (error) => done(() => reject(error)),
       });
-    } catch {
-      resolve();
+    } catch (error) {
+      reject(error);
     }
   });
 }
