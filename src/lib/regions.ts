@@ -44,21 +44,6 @@ export const DEFAULT_REGION: Region = REGIONS[0];
 
 const STORAGE_KEY = "commute-level:region";
 
-export function findNearestRegion(latitude: number, longitude: number): Region {
-  let nearest = REGIONS[0];
-  let minDist = Infinity;
-  for (const region of REGIONS) {
-    const dLat = region.latitude - latitude;
-    const dLon = (region.longitude - longitude) * Math.cos((latitude * Math.PI) / 180);
-    const dist = dLat * dLat + dLon * dLon;
-    if (dist < minDist) {
-      minDist = dist;
-      nearest = region;
-    }
-  }
-  return nearest;
-}
-
 export function loadRegion(): Region | null {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
