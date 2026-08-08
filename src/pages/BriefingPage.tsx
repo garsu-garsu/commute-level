@@ -41,7 +41,7 @@ import type { CommuteTime } from "../lib/commute";
 import type { Region } from "../lib/regions";
 import { describeWeatherCode } from "../lib/weather";
 
-/** granite.config.ts 의 appName / brand.icon 과 맞춰야 해요. */
+/** apps-in-toss.config.ts 의 appName / brand.icon 과 맞춰야 해요. */
 const SHARE_DEEP_LINK = "intoss://commute-level";
 const SHARE_OG_IMAGE =
   "https://static.toss.im/appsintoss/13203/5b4dff0b-a680-4e83-9afb-e450642089a2.png";
