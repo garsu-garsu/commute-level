@@ -132,8 +132,6 @@ export function BriefingPage({
 
       <StarSection briefing={briefing} />
 
-      <BannerAd adGroupId={AD_IDS.banner} />
-
       <Border variant="height16" />
 
       <ListHeader
@@ -262,7 +260,13 @@ export function BriefingPage({
 
       <div style={{ height: 24 }} />
 
-      <FixedBottomCTA onClick={handleShare}>
+      {/* 배너를 본문 안이 아니라 하단 고정 CTA 바로 위에 얹어요.
+          따로 position: fixed 를 주면 이 CTA 와 겹치는데, topAccessory 로 넣으면
+          CTA 가 잡아둔 하단 여백 안에 같이 들어가서 본문을 가리지 않아요. */}
+      <FixedBottomCTA
+        onClick={handleShare}
+        topAccessory={<BannerAd adGroupId={AD_IDS.banner} />}
+      >
         {briefing.isWeekend ? "오늘 난이도 친구에게 보내기" : "오늘 출근 난이도 동료에게 보내기"}
       </FixedBottomCTA>
 
