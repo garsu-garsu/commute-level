@@ -8,16 +8,9 @@ import type { CommuteTime } from "./lib/commute";
 import { DEFAULT_REGION, loadRegion, saveRegion } from "./lib/regions";
 import type { Region } from "./lib/regions";
 import { BriefingPage } from "./pages/BriefingPage";
-import { OnboardingPage } from "./pages/OnboardingPage";
 import { RegionSelectPage } from "./pages/RegionSelectPage";
 
-const ONBOARDED_KEY = "commute-level:onboarded";
-
 function App() {
-  // 첫 실행이면 소개 화면부터 — 한 번 보고 나면 다시 뜨지 않아요.
-  const [onboarded, setOnboarded] = useState(
-    () => localStorage.getItem(ONBOARDED_KEY) != null,
-  );
   const [region, setRegion] = useState<Region | null>(() => loadRegion());
   const [commute, setCommute] = useState<CommuteTime>(() => loadCommute());
   const [selecting, setSelecting] = useState(false);
@@ -44,18 +37,6 @@ function App() {
       interstitial.showAd();
     }
   };
-
-  if (!onboarded) {
-    // '시작하기'는 지역 선택을 거치지 않고 곧바로 브리핑으로 보내요.
-    return (
-      <OnboardingPage
-        onStart={() => {
-          localStorage.setItem(ONBOARDED_KEY, "1");
-          setOnboarded(true);
-        }}
-      />
-    );
-  }
 
   if (selecting) {
     // 아직 지역을 고른 적 없는 사람이 직접 열었을 때만 위치를 먼저 물어봐요.

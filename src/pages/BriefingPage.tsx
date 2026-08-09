@@ -13,8 +13,9 @@ import {
   Top,
   useToast,
 } from "@toss/tds-mobile";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { BannerAd } from "../components/BannerAd";
+import { CoachMark } from "../components/CoachMark";
 import { HourlyTrend } from "../components/HourlyTrend";
 import { useBriefing } from "../hooks/useBriefing";
 import { useInAppAds } from "../hooks/useInAppAds";
@@ -27,6 +28,7 @@ import {
   requestNotify,
   type NotifySlotCode,
 } from "../lib/notify";
+import { isOnboarded, markOnboarded } from "../lib/onboarding";
 import type { Briefing } from "../lib/briefing";
 import {
   centerHour,
@@ -55,6 +57,12 @@ interface Props {
   onChangeCommute: (commute: CommuteTime) => void;
 }
 
+const TOUR_MESSAGES = [
+  "따로 설정 안 해도 서울 기준으로 바로 보여드려요. 내 지역은 여기서 언제든 바꿀 수 있어요.",
+  "체감온도·비올 확률·바람·미세먼지를 묶어 별점으로 보여드려요. 어제 아침과 얼마나 다른지도 알려드려요.",
+  "출근·퇴근 시각을 정하면 그 시간대 날씨만 골라서 보여드려요. 여기를 눌러 시간을 설정해 보세요.",
+];
+
 export function BriefingPage({
   region,
   isDefaultRegion,
@@ -74,6 +82,38 @@ export function BriefingPage({
       setTomorrowUnlocked(true);
     }
   }, [rewarded.lastReward]);
+
+  // 첫 실행에만 도는 코치마크 투어 — 화면 아무 곳이나 누르면 다음 단계로 넘어가요.
+  const [tourStep, setTourStep] = useState(() => (isOnboarded() ? -1 : 0));
+  const regionRef = useRef<HTMLDivElement>(null);
+  const starsRef = useRef<HTMLDivElement>(null);
+  const commuteRef = useRef<HTMLDivElement>(null);
+  const tourRefs = [regionRef, starsRef, commuteRef];
+
+  const endTour = () => {
+    markOnboarded();
+    setTourStep(-1);
+  };
+
+  useEffect(() => {
+    if (tourStep < 0) return;
+    const onClick = (event: MouseEvent) => {
+      // 건너뛰기 버튼 클릭은 그대로 통과시켜요 — 여기서 가로채면 버튼이 안 눌려요.
+      if ((event.target as HTMLElement | null)?.closest("[data-tour-skip]") != null) return;
+      event.preventDefault();
+      event.stopPropagation();
+      setTourStep((prev) => {
+        const nextStep = prev + 1;
+        if (nextStep >= TOUR_MESSAGES.length) {
+          markOnboarded();
+          return -1;
+        }
+        return nextStep;
+      });
+    };
+    window.addEventListener("click", onClick, true);
+    return () => window.removeEventListener("click", onClick, true);
+  }, [tourStep]);
 
   if (state.status === "loading") {
     return <Skeleton pattern="amountTopList" />;
@@ -124,18 +164,22 @@ export function BriefingPage({
 
   return (
     <>
-      <Top
-        title={<Top.TitleParagraph size={22}>{title}</Top.TitleParagraph>}
-        subtitleTop={
-          <Top.SubtitleTextButton variant="arrow" onClick={onChangeRegion}>
-            {isDefaultRegion
-              ? `${region.name} 날씨 기준 · 내 지역으로 바꾸기`
-              : `${formatDate(briefing.date)} · ${region.name}`}
-          </Top.SubtitleTextButton>
-        }
-      />
+      <div ref={regionRef}>
+        <Top
+          title={<Top.TitleParagraph size={22}>{title}</Top.TitleParagraph>}
+          subtitleTop={
+            <Top.SubtitleTextButton variant="arrow" onClick={onChangeRegion}>
+              {isDefaultRegion
+                ? `${region.name} 날씨 기준 · 내 지역으로 바꾸기`
+                : `${formatDate(briefing.date)} · ${region.name}`}
+            </Top.SubtitleTextButton>
+          }
+        />
+      </div>
 
-      <StarSection briefing={briefing} />
+      <div ref={starsRef}>
+        <StarSection briefing={briefing} />
+      </div>
 
       <Border variant="height16" />
 
@@ -161,18 +205,20 @@ export function BriefingPage({
 
       <Border variant="height16" />
 
-      <ListHeader
-        title={
-          <ListHeader.TitleParagraph typography="t5" fontWeight="bold">
-            시간대별 날씨·체감온도
-          </ListHeader.TitleParagraph>
-        }
-        right={
-          <ListHeader.RightArrow typography="t6" onClick={() => setCommuteSheetOpen(true)}>
-            {`출근 ${formatHM(commute.depart)} · 퇴근 ${formatHM(commute.leave)}`}
-          </ListHeader.RightArrow>
-        }
-      />
+      <div ref={commuteRef}>
+        <ListHeader
+          title={
+            <ListHeader.TitleParagraph typography="t5" fontWeight="bold">
+              시간대별 날씨·체감온도
+            </ListHeader.TitleParagraph>
+          }
+          right={
+            <ListHeader.RightArrow typography="t6" onClick={() => setCommuteSheetOpen(true)}>
+              {`출근 ${formatHM(commute.depart)} · 퇴근 ${formatHM(commute.leave)}`}
+            </ListHeader.RightArrow>
+          }
+        />
+      </div>
       <HourlyTrend
         hours={briefing.todayHours}
         isWeekend={briefing.isWeekend}
@@ -286,6 +332,16 @@ export function BriefingPage({
           setCommuteSheetOpen(false);
         }}
       />
+
+      {tourStep >= 0 && (
+        <CoachMark
+          targetRef={tourRefs[tourStep]}
+          message={TOUR_MESSAGES[tourStep]}
+          index={tourStep}
+          total={TOUR_MESSAGES.length}
+          onSkip={endTour}
+        />
+      )}
     </>
   );
 }
