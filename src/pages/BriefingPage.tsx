@@ -308,7 +308,7 @@ export function BriefingPage({
       {/* 이미지 강조형 배너 — 본문 스크롤의 맨 끝. 끝까지 내려본 사람에게만 보여요.
           아래 배너는 하단 고정 CTA 에 붙어 있어 본문 흐름과 겹치지 않아요. */}
       <div style={{ marginTop: 24 }}>
-        <BannerAd adGroupId={AD_IDS.bannerImage} variant="card" height={200} />
+        <BannerAd adGroupId={AD_IDS.bannerImage} variant="card" height={200} grow />
       </div>
 
       <div style={{ height: 24 }} />

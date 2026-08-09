@@ -9,6 +9,12 @@ interface Props {
   variant?: "card" | "expanded";
   /** 자리 높이(px). 이미지 강조형은 문구형보다 커서 200 을 넣어요. 높이 0 이면 광고가 안 붙어요. */
   height?: number;
+  /**
+   * 소재가 height 보다 크면 그만큼 늘어나게 해요. SDK 가 소재 크기를 알려주지 않아서,
+   * height 로 고정하면 소재가 그보다 클 때 아래가 잘려요.
+   * 화면 하단에 고정으로 붙는 배너에는 쓰면 안 돼요 — 위로 자라 본문을 덮어요.
+   */
+  grow?: boolean;
 }
 
 /**
@@ -27,7 +33,7 @@ const REFRESH_MS = 30_000;
  * - 광고가 채워지지 않으면(no-fill) 빈 영역을 남기지 않아요.
  * - 참고: https://developers-apps-in-toss.toss.im/bedrock/reference/framework/광고/BannerAd.html
  */
-export function BannerAd({ adGroupId, variant = "expanded", height }: Props) {
+export function BannerAd({ adGroupId, variant = "expanded", height, grow }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [hidden, setHidden] = useState(false);
   // 이 값이 바뀔 때마다 아래 effect 가 다시 돌면서 배너를 새로 붙여요.
@@ -133,7 +139,7 @@ export function BannerAd({ adGroupId, variant = "expanded", height }: Props) {
         width: "100%",
         margin: "0 0 8px",
         boxSizing: "border-box",
-        height: hidden ? 0 : height,
+        ...(hidden ? { height: 0 } : grow ? { minHeight: height } : { height }),
         overflow: "hidden",
       }}
     />
