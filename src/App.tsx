@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import "./App.css";
 import { useInAppAds } from "./hooks/useInAppAds";
 import { canShowToday, markShownToday } from "./lib/adFrequency";
 import { AD_IDS } from "./lib/ads";
+import { EVENT, track, trackScreen } from "./lib/analytics";
 import { loadCommute, saveCommute } from "./lib/commute";
 import type { CommuteTime } from "./lib/commute";
 import { DEFAULT_REGION, loadRegion, saveRegion } from "./lib/regions";
@@ -15,9 +16,14 @@ function App() {
   const [commute, setCommute] = useState<CommuteTime>(() => loadCommute());
   const [selecting, setSelecting] = useState(false);
 
+  useEffect(() => {
+    trackScreen(selecting ? "region_select" : "briefing");
+  }, [selecting]);
+
   const handleChangeCommute = (next: CommuteTime) => {
     saveCommute(next);
     setCommute(next);
+    track(EVENT.commuteTimeSet, { depart: next.depart, leave: next.leave });
   };
 
   // 전면형 광고는 App 최상위에서 미리 로드해, 지역 선택 화면을 거쳐도 로드 상태가 유지되게 해요.
@@ -31,10 +37,18 @@ function App() {
     setRegion(selected);
     setSelecting(false);
 
+    // 좌표·주소 원문 대신 지역 id("current" 포함)만 남겨요.
+    track(EVENT.locationSet, {
+      region: selected.id,
+      method: selected.id === "current" ? "gps" : "list",
+      is_change: isRegionChange ? 1 : 0,
+    });
+
     // 자연스러운 전환점 + 하루 1회 제한으로 거부감을 최소화해요.
     if (isRegionChange && canShowToday("interstitial")) {
       markShownToday("interstitial");
       interstitial.showAd();
+      track(EVENT.adInterstitial, { context: "region_change" });
     }
   };
 

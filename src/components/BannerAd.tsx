@@ -1,5 +1,6 @@
 import { TossAds } from "@apps-in-toss/web-framework";
 import { useEffect, useRef, useState } from "react";
+import { EVENT, track } from "../lib/analytics";
 import { ensureTossAdsInitialized } from "../lib/tossAds";
 
 interface Props {
@@ -80,7 +81,10 @@ export function BannerAd({ adGroupId, variant = "expanded", height, grow }: Prop
           theme: "auto",
           variant,
           callbacks: {
-            onAdRendered: (p) => console.info("[BannerAd] 렌더링 완료", p.slotId),
+            onAdRendered: (p) => {
+              console.info("[BannerAd] 렌더링 완료", p.slotId);
+              track(EVENT.adBannerImpression, { variant }, "impression");
+            },
             onAdViewable: (p) => console.info("[BannerAd] 노출(수익 발생)", p.slotId),
             onNoFill: () => {
               console.info("[BannerAd] 광고 재고 없음(no-fill)");

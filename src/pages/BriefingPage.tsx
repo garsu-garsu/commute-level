@@ -20,6 +20,7 @@ import { HourlyTrend } from "../components/HourlyTrend";
 import { useBriefing } from "../hooks/useBriefing";
 import { useInAppAds } from "../hooks/useInAppAds";
 import { AD_IDS } from "../lib/ads";
+import { EVENT, track } from "../lib/analytics";
 import { buildShareMessage, formatDate } from "../lib/briefing";
 import {
   agreedSlot,
@@ -80,8 +81,23 @@ export function BriefingPage({
   useEffect(() => {
     if (rewarded.lastReward != null) {
       setTomorrowUnlocked(true);
+      track(EVENT.adRewarded, { context: "tomorrow_preview" });
+      track(EVENT.tomorrowUnlocked, { via: "ad" });
     }
   }, [rewarded.lastReward]);
+
+  // 이 앱의 핵심 전환 — 오늘 난이도·옷차림을 실제로 본 순간이에요.
+  const ready = state.status === "ready" ? state.briefing : null;
+  useEffect(() => {
+    if (ready == null) return;
+    track(EVENT.outfitViewed, {
+      region: region.id,
+      stars: ready.difficulty.stars,
+      outfit_level: ready.outfit.level,
+      is_weekend: ready.isWeekend ? 1 : 0,
+      is_default_region: isDefaultRegion ? 1 : 0,
+    });
+  }, [ready, region.id, isDefaultRegion]);
 
   // 첫 실행에만 도는 코치마크 투어 — 화면 아무 곳이나 누르면 다음 단계로 넘어가요.
   const [tourStep, setTourStep] = useState(() => (isOnboarded() ? -1 : 0));
@@ -149,6 +165,7 @@ export function BriefingPage({
       // 받은 사람이 바로 앱으로 들어올 수 있게 토스 공유 링크를 붙여요. (실패하면 문구만 공유)
       const link = await getTossShareLink(SHARE_DEEP_LINK, SHARE_OG_IMAGE).catch(() => "");
       await share({ message: link ? `${message}\n${link}` : message });
+      track(EVENT.shareCompleted, { context: "briefing", method: "toss" });
     } catch {
       try {
         if (navigator.share) await navigator.share({ text: message });
@@ -156,6 +173,7 @@ export function BriefingPage({
           await navigator.clipboard.writeText(message);
           alert("브리핑이 복사됐어요. 붙여넣어 공유해 보세요!");
         }
+        track(EVENT.shareCompleted, { context: "briefing", method: "web" });
       } catch {
         // 사용자가 공유 시트를 닫은 경우 등 — 무시
       }
@@ -575,6 +593,7 @@ function MorningAlertCard() {
   const onNotify = async (code: NotifySlotCode) => {
     try {
       const result = await requestNotify(code);
+      track(EVENT.notifyConsent, { result, where: "briefing", slot: code });
       if (result === "agreementRejected") return;
       setAgreed(code);
       toast.openToast(
