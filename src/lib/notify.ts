@@ -5,11 +5,11 @@ import { requestNotificationAgreement } from "@apps-in-toss/web-framework";
  * 코드를 바꾸면 콘솔의 템플릿 코드도 같이 바꿔야 알림 동의 화면이 떠요.
  */
 export const NOTIFY_SLOTS = [
-  { code: "commute-level-am0630", label: "오전 6시 30분" },
-  { code: "commute-level-am0700", label: "오전 7시" },
-  { code: "commute-level-am0730", label: "오전 7시 30분" },
-  { code: "commute-level-am0800", label: "오전 8시" },
-  { code: "commute-level-am0830", label: "오전 8시 30분" },
+  { code: "commute-level-am0630-p", label: "오전 6시 30분" },
+  { code: "commute-level-am0700-p", label: "오전 7시" },
+  { code: "commute-level-am0730-p", label: "오전 7시 30분" },
+  { code: "commute-level-am0800-p", label: "오전 8시" },
+  { code: "commute-level-am0830-p", label: "오전 8시 30분" },
 ] as const;
 
 export type NotifySlotCode = (typeof NOTIFY_SLOTS)[number]["code"];
